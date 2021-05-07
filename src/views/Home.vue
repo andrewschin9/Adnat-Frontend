@@ -4,32 +4,59 @@
     <p><a href="/signup">Sign up</a></p>
     <p><a href="/login">Login</a></p>
     <p><a href="/logout">Logout</a></p>
+    <p><a href="/myshifts">My Shifts</a></p>
     <!-- List of all orgs -->
     <h1>ORGANIZATIONS</h1>
     <hr>
     <div v-for="organization in organizations">
       <!-- modal for making shifts -->
-      <h3 v-on:click="showOrganization(organization)">Name: {{organization.name}}</h3>
+      <h3 v-on:click="showOrganization(organization); filterShifts(organization)">Name: {{organization.name}}</h3>
       <h4>Hourly Rate: {{organization.hourly_rate}}</h4>
       <dialog id="organization-details">
         <form method = "dialog">
           <button class="btn-round">Close</button>
           <p>{{currentOrganization.name}}</p>
           <p>Shifts</p>
-          <div v-for="shift in shifts">
-            <h3>Employee name: </h3>
-            <h3>Shift Date: {{shift.shift_date}}</h3>
-            <h3>Shift start: {{shift.start_time}}</h3>  
-            <h3>Shift finish: {{shift.finish_time}}</h3>  
-            <h3>Break: {{shift.break_length}}</h3>  
+          <div v-for="filteredShift in filteredShifts">
+            <h3>Employee name: {{filteredShift.employee_name}}</h3>
+            <h3>Shift Date: {{filteredShift.shift_date}}</h3>
+            <h3>Shift start: {{filteredShift.start_time}}</h3>  
+            <h3>Shift finish: {{filteredShift.finish_time}}</h3>  
+            <h3>Break (in min): {{filteredShift.break_length}}</h3>  
+            <h3>Length (in hr): {{filteredShift.length}}</h3>  
+            <h3>Wage (in $): {{filteredShift.wage}}</h3>  
             <hr>
           </div> 
+          <!-- Make new shifts -->
+          <form v-on:submit.prevent="createShift()">
+            <h3>New Shift</h3>
+            <ul>
+              <li class="text-danger" v-for="error in errors">{{ error }}</li>
+            </ul>
+            <div class="form-group">
+              <label>Shift Date (2XXX-12-31):</label> 
+              <input type="text" class="form-control" v-model="shift_date">
+            </div>
+            <div class="form-group">
+              <label>Shift Start (X:XXam or pm):</label>
+              <input type="text" class="form-control" v-model="start_time">
+            </div>
+            <div class="form-group">
+              <label>Shift finish (X:XXam or pm):</label>
+              <input type="text" class="form-control" v-model="finish_time">
+            </div>
+            <div class="form-group">
+              <label>Break (in min):</label>
+              <input type="text" class="form-control" v-model="break_length">
+            </div>
+            <input type="submit" class="btn btn-primary" value="Submit">
+          </form>
         </form>
       </dialog>
       <hr>
     </div>
-    <!-- Create new org -->
-      <form v-on:submit.prevent="submit()">
+    <!-- Make new org -->
+      <form v-on:submit.prevent="submitOrg()">
       <h1>Make new organization</h1>
       <ul>
         <li class="text-danger" v-for="error in errors">{{ error }}</li>
@@ -65,20 +92,27 @@ export default {
       start_time: "",
       finish_time: "",
       break_length: "",
-      shift_length: "",
+      length: "",
       name: "",
       hourly_rate: "",
       currentOrganization: {},
+      currentShift: {},
       errors: [],
       search: "",
+      filteredShifts: [],
     };
   },
+  computed: {},
+
   created: function () {
     console.log("in created");
     this.organizationsIndex();
     this.shiftsIndex();
   },
   methods: {
+    shiftLength(filteredShift) {
+      return typeof filteredShift.start_time;
+    },
     shiftsIndex: function () {
       axios.get("/api/shifts").then((response) => {
         console.log(response.data);
@@ -108,7 +142,7 @@ export default {
     //   this.shift_length =
     //     this.shift.finish_time.to_i - this.shift.start_time.to_i;
     // },
-    submit: function () {
+    submitOrg: function () {
       var params = {
         name: this.name,
         hourly_rate: this.hourly_rate,
@@ -122,6 +156,22 @@ export default {
           this.status = error.response.status;
         });
       this.organizationsIndex();
+    },
+    filterShifts: function (organization) {
+      var fshift = this.shifts.filter(
+        (item) => item.organization_id === organization.id
+      );
+      this.filteredShifts = fshift;
+    },
+    createShift: function () {
+      var params = {
+        organization_id: this.currentOrganization.id,
+        shift_date: this.shift_date,
+        start_time: this.start_time,
+        finish_time: this.finish_time,
+        break_length: this.break_length,
+      };
+      axios.post("http://localhost:3000/api/shifts", params);
     },
   },
 };
